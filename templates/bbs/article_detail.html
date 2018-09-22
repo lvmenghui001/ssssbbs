@@ -1,0 +1,108 @@
+{% extends 'base.html' %}
+{% load custom %}
+{% block page-container %}
+    <div class="wrap-left">
+            <div class="article-title-bg">
+                {{ article_obj.title }}
+            </div>
+            <div class="article-title-brief">
+                <span>作者：{{ article_obj.author.name }}</span>
+                <span>{{ article_obj.pub_date }}</span>
+                <span>
+                    <span>{% filter_comment article_obj as comments %}</span>
+                        <span style="margin-left: 20px" class="glyphicon glyphicon-comment" aria-hidden="true"></span>
+                        {{ comments.comment_count }}
+                </span>
+            </div>
+        <div class="article-content">
+            <img class="article-head-img2" style="width: 500px;height: 300px;margin-left: 160px" src="/static/{{ article_obj.head_img|truncate_url }}" alt="文章图片">
+            <div class="article_fond">{{ article_obj.content | safe }}</div>
+        </div>
+        <div class="comment-box">
+                    {% if request.user.is_authenticated %}
+                <div class="new-comment-box">
+                    <textarea class="form-control" rows="3"></textarea>
+                    <button type="button" style="margin-top: 5px" class="btn btn-sucess pull-right">评论</button>
+                </div>
+            {% else %}
+                <div class="jumbotron">
+                    <h4 style="text-align: center"><a class="btn-link" href="{% url 'login' %}?next={{ request.path }}">登陆</a>后评论</h4>
+                </div>
+            {% endif %}
+        </div>
+        <div class="comment-list">
+
+        </div>
+    </div>
+
+    <div class="wrap-right">
+
+    </div>
+        <hr>
+
+    <hr>
+{% endblock %}
+
+{% block bottom-js %}
+<script>
+
+    function GetComments() {
+        $.get("{% url 'get_comments' article_obj.id %}",function(callback){
+            console.log(callback);
+            $(".comment-list").html(callback);
+
+        {#动态添加评论#}
+            $(".add-comment ").click(function() {
+                var commemt_id = $(this).attr("comment-id");
+
+                //克隆评论框
+                var new_comment_box = $(".new-comment-box").clone(true);
+                $(".new-comment-box").remove();
+                $(this).parent().append(new_comment_box);
+            })
+        })
+    }
+
+    function getCsrf(){
+        return $("input[name='csrfmiddlewaretoken']").val();
+    }
+
+    $(document).ready(function () {
+        GetComments();
+        $(".new-comment-box button").click(function () {
+            var comment_text = $(".new-comment-box textarea").val();
+            if (comment_text.trim().length < 5){
+                alert("不能少于5个字符！")
+            }
+            else {
+                var parent_comment_id = $(this).parent().prev().attr("comment-id");
+                $.post("{% url 'post_comment' %}",
+                    {
+                        comment_type:1,
+                        article_id:"{{ article_obj.id }}",
+                        parent_comment_id:parent_comment_id,
+                        comment:comment_text.trim(),
+                        "csrfmiddlewaretoken":getCsrf()
+                    },
+                    function (callback){
+                        console.log(callback);
+                        if (callback == 'post-comment-success'){
+                            {#alert('post-comment-success');#}
+                            var new_comment_box = $(".new-comment-box").clone(true);
+                            $(".new-comment-box").remove();
+                            $(".comment-list").before(new_comment_box);
+
+                            $(".new-comment-box textarea").val("")
+                            GetComments();
+                        }
+                        else if(callback == 'post-comment-fail'){
+                            alert('post-comment-fail');
+                            GetComments();
+                        }
+                    }
+                )
+            }
+        });
+    });
+</script>
+{% endblock %}
